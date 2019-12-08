@@ -123,8 +123,8 @@ func (s *Server) DidChangeWatchedFiles(ctx context.Context, params *protocol.Did
 	return s.didChangeWatchedFiles(ctx, params)
 }
 
-func (s *Server) Symbol(context.Context, *protocol.WorkspaceSymbolParams) ([]protocol.SymbolInformation, error) {
-	return nil, notImplemented("Symbol")
+func (s *Server) Symbol(ctx context.Context, params *protocol.WorkspaceSymbolParams) ([]protocol.SymbolInformation, error) {
+	return s.workspaceSymbol(ctx, params)
 }
 
 func (s *Server) ExecuteCommand(ctx context.Context, params *protocol.ExecuteCommandParams) (interface{}, error) {
