@@ -16,8 +16,8 @@ func (s *Server) workspaceSymbol(ctx context.Context, params *protocol.Workspace
 	var symbols []protocol.SymbolInformation
 	for _, view := range s.session.Views() {
 		for _, pkg := range view.Snapshot().KnownPackages(ctx) {
-			for _, h := range pkg.CompiledGoFiles() {
-				file, mapper, err1, err2 := h.Parse(ctx)
+			for _, handle := range pkg.CompiledGoFiles() {
+				file, mapper, err1, err2 := handle.Parse(ctx)
 				if err1 != nil || err2 != nil {
 					continue
 				}
@@ -30,7 +30,7 @@ func (s *Server) workspaceSymbol(ctx context.Context, params *protocol.Workspace
 							if err != nil {
 								return false
 							}
-							r, err := mapper.Range(span)
+							rng, err := mapper.Range(span)
 							if err != nil {
 								return false
 							}
@@ -38,8 +38,8 @@ func (s *Server) workspaceSymbol(ctx context.Context, params *protocol.Workspace
 								Name: t.Name,
 								Kind: protocol.File,
 								Location: protocol.Location{
-									URI:   protocol.DocumentURI("file://" + h.File().Identity().URI.Filename()),
-									Range: r,
+									URI:   protocol.DocumentURI("file://" + handle.File().Identity().URI.Filename()),
+									Range: rng,
 								},
 							})
 						}
