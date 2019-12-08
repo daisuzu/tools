@@ -24,7 +24,7 @@ func (s *Server) workspaceSymbol(ctx context.Context, params *protocol.Workspace
 				ast.Inspect(file, func(node ast.Node) bool {
 					switch t := node.(type) {
 					case *ast.Ident:
-						if strings.Index(t.Name, params.Query) >= 0 {
+						if strings.Contains(t.Name, params.Query) {
 							pos := view.Session().Cache().FileSet().Position(t.Pos())
 							span, err := mapper.PointSpan(protocol.Position{Line: float64(pos.Line - 1), Character: float64(pos.Column)})
 							if err != nil {
