@@ -104,6 +104,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 					ChangeNotifications: "workspace/didChangeWorkspaceFolders",
 				},
 			},
+			WorkspaceSymbolProvider: true,
 		},
 	}, nil
 }
