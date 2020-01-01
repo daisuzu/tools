@@ -18,6 +18,7 @@ ReferencesCount = 7
 RenamesCount = 22
 PrepareRenamesCount = 8
 SymbolsCount = 1
+WorkspaceSymbolsCount = 2
 SignaturesCount = 22
 LinksCount = 8
 ImplementationsCount = 5

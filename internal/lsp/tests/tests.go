@@ -61,6 +61,7 @@ type Renames map[span.Span]string
 type PrepareRenames map[span.Span]*source.PrepareItem
 type Symbols map[span.URI][]protocol.DocumentSymbol
 type SymbolsChildren map[string][]protocol.DocumentSymbol
+type WorkspaceSymbols map[string][]protocol.SymbolInformation
 type Signatures map[span.Span]*source.SignatureInformation
 type Links map[span.URI][]Link
 
@@ -88,6 +89,7 @@ type Data struct {
 	PrepareRenames           PrepareRenames
 	Symbols                  Symbols
 	symbolsChildren          SymbolsChildren
+	WorkspaceSymbols         WorkspaceSymbols
 	Signatures               Signatures
 	Links                    Links
 
@@ -120,6 +122,7 @@ type Tests interface {
 	Rename(*testing.T, span.Span, string)
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
 	Symbols(*testing.T, span.URI, []protocol.DocumentSymbol)
+	WorkspaceSymbols(*testing.T, string, []protocol.SymbolInformation)
 	SignatureHelp(*testing.T, span.Span, *source.SignatureInformation)
 	Link(*testing.T, span.URI, []Link)
 }
@@ -218,6 +221,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		PrepareRenames:           make(PrepareRenames),
 		Symbols:                  make(Symbols),
 		symbolsChildren:          make(SymbolsChildren),
+		WorkspaceSymbols:         make(WorkspaceSymbols),
 		Signatures:               make(Signatures),
 		Links:                    make(Links),
 
@@ -318,6 +322,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		"rename":          data.collectRenames,
 		"prepare":         data.collectPrepareRenames,
 		"symbol":          data.collectSymbols,
+		"workspacesymbol": data.collectWorkspaceSymbols,
 		"signature":       data.collectSignatures,
 		"link":            data.collectLinks,
 		"suggestedfix":    data.collectSuggestedFixes,
@@ -533,6 +538,20 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		}
 	})
 
+	t.Run("WorkspaceSymbols", func(t *testing.T) {
+		t.Helper()
+		for query, expectedSymbols := range data.WorkspaceSymbols {
+			name := query
+			if name == "" {
+				name = "EmptyQuery"
+			}
+			t.Run(name, func(t *testing.T) {
+				t.Helper()
+				tests.WorkspaceSymbols(t, query, expectedSymbols)
+			})
+		}
+	})
+
 	t.Run("SignatureHelp", func(t *testing.T) {
 		t.Helper()
 		for spn, expectedSignature := range data.Signatures {
@@ -619,6 +638,7 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "RenamesCount = %v\n", len(data.Renames))
 	fmt.Fprintf(buf, "PrepareRenamesCount = %v\n", len(data.PrepareRenames))
 	fmt.Fprintf(buf, "SymbolsCount = %v\n", len(data.Symbols))
+	fmt.Fprintf(buf, "WorkspaceSymbolsCount = %v\n", len(data.WorkspaceSymbols))
 	fmt.Fprintf(buf, "SignaturesCount = %v\n", len(data.Signatures))
 	fmt.Fprintf(buf, "LinksCount = %v\n", linksCount)
 	fmt.Fprintf(buf, "ImplementationsCount = %v\n", len(data.Implementations))
@@ -881,6 +901,29 @@ func (data *Data) collectSymbols(name string, spn span.Span, kind string, parent
 		data.Symbols[spn.URI()] = append(data.Symbols[spn.URI()], sym)
 	} else {
 		data.symbolsChildren[parentName] = append(data.symbolsChildren[parentName], sym)
+	}
+}
+
+func (data *Data) collectWorkspaceSymbols(name string, spn span.Span, kind string, query []string) {
+	m, err := data.Mapper(spn.URI())
+	if err != nil {
+		data.t.Fatal(err)
+	}
+	rng, err := m.Range(spn)
+	if err != nil {
+		data.t.Fatal(err)
+	}
+	sym := protocol.SymbolInformation{
+		Name: name,
+		Kind: protocol.ParseSymbolKind(kind),
+		Location: protocol.Location{
+			URI:   protocol.NewURI(spn.URI()),
+			Range: rng,
+		},
+	}
+	data.WorkspaceSymbols[""] = append(data.WorkspaceSymbols[""], sym)
+	for _, q := range query {
+		data.WorkspaceSymbols[q] = append(data.WorkspaceSymbols[q], sym)
 	}
 }
 
