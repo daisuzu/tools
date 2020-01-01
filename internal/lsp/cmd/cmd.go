@@ -180,6 +180,7 @@ func (app *Application) featureCommands() []tool.Application {
 		&signature{app: app},
 		&suggestedfix{app: app},
 		&symbols{app: app},
+		&workspaceSymbols{app: app},
 	}
 }
 
