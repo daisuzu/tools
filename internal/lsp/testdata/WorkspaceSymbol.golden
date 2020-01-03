@@ -1,0 +1,4 @@
+-- workspacesymbol --
+workspacesymbol/a/a.go:3:7-3:23 WorkspaceSymbolA Constant
+workspacesymbol/b/b.go:3:7-3:23 WorkspaceSymbolB Constant
+
