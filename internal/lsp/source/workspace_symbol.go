@@ -16,12 +16,21 @@ func WorkspaceSymbols(ctx context.Context, view View, query string) ([]protocol.
 	ctx, done := trace.StartSpan(ctx, "source.WorkspaceSymbols")
 	defer done()
 
+	pkgs := make(map[string]struct{})
 	var symbols []protocol.SymbolInformation
-	for _, ph := range view.Snapshot().KnownPackages(ctx) {
+	for _, id := range view.Snapshot().WorkspacePackageIDs(ctx) {
+		ph, err := view.Snapshot().PackageHandle(ctx, id)
+		if err != nil {
+			return nil, err
+		}
 		pkg, err := ph.Check(ctx)
 		if err != nil {
 			return nil, err
 		}
+		if _, ok := pkgs[pkg.PkgPath()]; ok {
+			continue
+		}
+		pkgs[pkg.PkgPath()] = struct{}{}
 		for _, handle := range pkg.CompiledGoFiles() {
 			file, mapper, _, err := handle.Cached()
 			if err != nil {
