@@ -798,20 +798,10 @@ func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.
 }
 
 func (r *runner) WorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	original := r.view.Options()
-	modified := original
-	modified.UserOptions.Matcher = source.CaseInsensitive
-	view, err := r.view.SetOptions(r.ctx, modified)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer r.view.SetOptions(r.ctx, original)
-
-	symbols, err := source.WorkspaceSymbols(r.ctx, []source.View{view}, query)
-	if err != nil {
-		t.Errorf("symbols failed: %v", err)
-	}
-	got := tests.FilterWorkspaceSymbols(symbols, dirs)
+	got := r.callWorkspaceSymbols(t, query, func(opts *source.Options) {
+		opts.Matcher = source.CaseInsensitive
+	})
+	got = tests.FilterWorkspaceSymbols(got, dirs)
 	if len(got) != len(expectedSymbols) {
 		t.Errorf("want %d symbols, got %d", len(expectedSymbols), len(got))
 		return
@@ -822,20 +812,10 @@ func (r *runner) WorkspaceSymbols(t *testing.T, query string, expectedSymbols []
 }
 
 func (r *runner) WorkspaceSymbolsFuzzy(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	original := r.view.Options()
-	modified := original
-	modified.UserOptions.Matcher = source.Fuzzy
-	view, err := r.view.SetOptions(r.ctx, modified)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer r.view.SetOptions(r.ctx, original)
-
-	symbols, err := source.WorkspaceSymbols(r.ctx, []source.View{view}, query)
-	if err != nil {
-		t.Errorf("symbols failed: %v", err)
-	}
-	got := tests.FilterWorkspaceSymbols(symbols, dirs)
+	got := r.callWorkspaceSymbols(t, query, func(opts *source.Options) {
+		opts.Matcher = source.Fuzzy
+	})
+	got = tests.FilterWorkspaceSymbols(got, dirs)
 	if len(got) != len(expectedSymbols) {
 		t.Errorf("want %d symbols, got %d", len(expectedSymbols), len(got))
 		return
@@ -843,6 +823,23 @@ func (r *runner) WorkspaceSymbolsFuzzy(t *testing.T, query string, expectedSymbo
 	if diff := tests.DiffWorkspaceSymbols(expectedSymbols, got); diff != "" {
 		t.Error(diff)
 	}
+}
+
+func (r *runner) callWorkspaceSymbols(t *testing.T, query string, options func(*source.Options)) []protocol.SymbolInformation {
+	original := r.view.Options()
+	modified := original
+	options(&modified)
+	view, err := r.view.SetOptions(r.ctx, modified)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.view.SetOptions(r.ctx, original)
+
+	got, err := source.WorkspaceSymbols(r.ctx, []source.View{view}, query)
+	if err != nil {
+		t.Errorf("symbols failed: %v", err)
+	}
+	return got
 }
 
 func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.SignatureHelp) {
