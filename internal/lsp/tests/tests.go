@@ -94,6 +94,7 @@ type Data struct {
 	symbolsChildren          SymbolsChildren
 	symbolInformation        SymbolInformation
 	WorkspaceSymbols         WorkspaceSymbols
+	WorkspaceSymbolsFuzzy    WorkspaceSymbols
 	Signatures               Signatures
 	Links                    Links
 
@@ -130,6 +131,7 @@ type Tests interface {
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
 	Symbols(*testing.T, span.URI, []protocol.DocumentSymbol)
 	WorkspaceSymbols(*testing.T, string, []protocol.SymbolInformation, map[string]struct{})
+	WorkspaceSymbolsFuzzy(*testing.T, string, []protocol.SymbolInformation, map[string]struct{})
 	SignatureHelp(*testing.T, span.Span, *protocol.SignatureHelp)
 	Link(*testing.T, span.URI, []Link)
 }
@@ -161,6 +163,19 @@ const (
 
 	// CompletionRank candidates in test must be valid and in the right relative order.
 	CompletionRank
+)
+
+type WorkspaceSymbolsTestType int
+
+const (
+	// Default runs the standard workspace symbols tests.
+	WorkspaceSymbolsDefault = WorkspaceSymbolsTestType(iota)
+
+	// Fuzzy tests fuzzy matching.
+	WorkspaceSymbolsFuzzy
+
+	// CaseSensitive tests case sensitive.
+	WorkspaceSymbolsCaseSensitive
 )
 
 type Completion struct {
@@ -262,6 +277,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 			symbolsChildren:          make(SymbolsChildren),
 			symbolInformation:        make(SymbolInformation),
 			WorkspaceSymbols:         make(WorkspaceSymbols),
+			WorkspaceSymbolsFuzzy:    make(WorkspaceSymbols),
 			Signatures:               make(Signatures),
 			Links:                    make(Links),
 
@@ -396,9 +412,10 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 		}
 		// Collect names for the entries that require golden files.
 		if err := datum.Exported.Expect(map[string]interface{}{
-			"godef":           datum.collectDefinitionNames,
-			"hover":           datum.collectDefinitionNames,
-			"workspacesymbol": datum.collectWorkspaceSymbols,
+			"godef":                datum.collectDefinitionNames,
+			"hover":                datum.collectDefinitionNames,
+			"workspacesymbol":      datum.collectWorkspaceSymbols(WorkspaceSymbolsDefault),
+			"workspacesymbolfuzzy": datum.collectWorkspaceSymbols(WorkspaceSymbolsFuzzy),
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -425,6 +442,28 @@ func Run(t *testing.T, tests Tests, data *Data) {
 				})
 			}
 
+		}
+	}
+
+	eachWorkspaceSymbols := func(t *testing.T, cases map[string][]protocol.SymbolInformation, test func(*testing.T, string, []protocol.SymbolInformation, map[string]struct{})) {
+		t.Helper()
+
+		for query, expectedSymbols := range cases {
+			name := query
+			if name == "" {
+				name = "EmptyQuery"
+			}
+			t.Run(name, func(t *testing.T) {
+				t.Helper()
+				dirs := make(map[string]struct{})
+				for _, si := range expectedSymbols {
+					d := filepath.Dir(si.Location.URI)
+					if _, ok := dirs[d]; !ok {
+						dirs[d] = struct{}{}
+					}
+				}
+				test(t, query, expectedSymbols, dirs)
+			})
 		}
 	}
 
@@ -610,23 +649,12 @@ func Run(t *testing.T, tests Tests, data *Data) {
 
 	t.Run("WorkspaceSymbols", func(t *testing.T) {
 		t.Helper()
-		for query, expectedSymbols := range data.WorkspaceSymbols {
-			name := query
-			if name == "" {
-				name = "EmptyQuery"
-			}
-			t.Run(name, func(t *testing.T) {
-				t.Helper()
-				dirs := make(map[string]struct{})
-				for _, si := range expectedSymbols {
-					d := filepath.Dir(si.Location.URI)
-					if _, ok := dirs[d]; !ok {
-						dirs[d] = struct{}{}
-					}
-				}
-				tests.WorkspaceSymbols(t, query, expectedSymbols, dirs)
-			})
-		}
+		eachWorkspaceSymbols(t, data.WorkspaceSymbols, tests.WorkspaceSymbols)
+	})
+
+	t.Run("WorkspaceSymbolsFuzzy", func(t *testing.T) {
+		t.Helper()
+		eachWorkspaceSymbols(t, data.WorkspaceSymbolsFuzzy, tests.WorkspaceSymbolsFuzzy)
 	})
 
 	t.Run("SignatureHelp", func(t *testing.T) {
@@ -998,9 +1026,20 @@ func (data *Data) collectSymbols(name string, spn span.Span, kind string, parent
 	data.symbolInformation[spn] = si
 }
 
-func (data *Data) collectWorkspaceSymbols(query string, targets []span.Span) {
-	for _, target := range targets {
-		data.WorkspaceSymbols[query] = append(data.WorkspaceSymbols[query], data.symbolInformation[target])
+func (data *Data) collectWorkspaceSymbols(typ WorkspaceSymbolsTestType) func(string, []span.Span) {
+	switch typ {
+	case WorkspaceSymbolsFuzzy:
+		return func(query string, targets []span.Span) {
+			for _, target := range targets {
+				data.WorkspaceSymbolsFuzzy[query] = append(data.WorkspaceSymbolsFuzzy[query], data.symbolInformation[target])
+			}
+		}
+	default:
+		return func(query string, targets []span.Span) {
+			for _, target := range targets {
+				data.WorkspaceSymbols[query] = append(data.WorkspaceSymbols[query], data.symbolInformation[target])
+			}
+		}
 	}
 }
 
