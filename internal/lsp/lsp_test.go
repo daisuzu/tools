@@ -817,6 +817,20 @@ func (r *runner) WorkspaceSymbolsFuzzy(t *testing.T, query string, expectedSymbo
 	}
 }
 
+func (r *runner) WorkspaceSymbolsCaseSensitive(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
+	got := r.callWorkspaceSymbols(t, query, func(opts *source.Options) {
+		opts.Matcher = source.CaseSensitive
+	})
+	got = tests.FilterWorkspaceSymbols(got, dirs)
+	if len(got) != len(expectedSymbols) {
+		t.Errorf("want %d symbols, got %d", len(expectedSymbols), len(got))
+		return
+	}
+	if diff := tests.DiffWorkspaceSymbols(expectedSymbols, got); diff != "" {
+		t.Error(diff)
+	}
+}
+
 func (r *runner) callWorkspaceSymbols(t *testing.T, query string, options func(*source.Options)) []protocol.SymbolInformation {
 	t.Helper()
 

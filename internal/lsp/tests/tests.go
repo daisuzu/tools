@@ -69,34 +69,35 @@ type Signatures map[span.Span]*protocol.SignatureHelp
 type Links map[span.URI][]Link
 
 type Data struct {
-	Config                   packages.Config
-	Exported                 *packagestest.Exported
-	Diagnostics              Diagnostics
-	CompletionItems          CompletionItems
-	Completions              Completions
-	CompletionSnippets       CompletionSnippets
-	UnimportedCompletions    UnimportedCompletions
-	DeepCompletions          DeepCompletions
-	FuzzyCompletions         FuzzyCompletions
-	CaseSensitiveCompletions CaseSensitiveCompletions
-	RankCompletions          RankCompletions
-	FoldingRanges            FoldingRanges
-	Formats                  Formats
-	Imports                  Imports
-	SuggestedFixes           SuggestedFixes
-	Definitions              Definitions
-	Implementations          Implementations
-	Highlights               Highlights
-	References               References
-	Renames                  Renames
-	PrepareRenames           PrepareRenames
-	Symbols                  Symbols
-	symbolsChildren          SymbolsChildren
-	symbolInformation        SymbolInformation
-	WorkspaceSymbols         WorkspaceSymbols
-	WorkspaceSymbolsFuzzy    WorkspaceSymbols
-	Signatures               Signatures
-	Links                    Links
+	Config                        packages.Config
+	Exported                      *packagestest.Exported
+	Diagnostics                   Diagnostics
+	CompletionItems               CompletionItems
+	Completions                   Completions
+	CompletionSnippets            CompletionSnippets
+	UnimportedCompletions         UnimportedCompletions
+	DeepCompletions               DeepCompletions
+	FuzzyCompletions              FuzzyCompletions
+	CaseSensitiveCompletions      CaseSensitiveCompletions
+	RankCompletions               RankCompletions
+	FoldingRanges                 FoldingRanges
+	Formats                       Formats
+	Imports                       Imports
+	SuggestedFixes                SuggestedFixes
+	Definitions                   Definitions
+	Implementations               Implementations
+	Highlights                    Highlights
+	References                    References
+	Renames                       Renames
+	PrepareRenames                PrepareRenames
+	Symbols                       Symbols
+	symbolsChildren               SymbolsChildren
+	symbolInformation             SymbolInformation
+	WorkspaceSymbols              WorkspaceSymbols
+	WorkspaceSymbolsFuzzy         WorkspaceSymbols
+	WorkspaceSymbolsCaseSensitive WorkspaceSymbols
+	Signatures                    Signatures
+	Links                         Links
 
 	t         testing.TB
 	fragments map[string]string
@@ -132,6 +133,7 @@ type Tests interface {
 	Symbols(*testing.T, span.URI, []protocol.DocumentSymbol)
 	WorkspaceSymbols(*testing.T, string, []protocol.SymbolInformation, map[string]struct{})
 	WorkspaceSymbolsFuzzy(*testing.T, string, []protocol.SymbolInformation, map[string]struct{})
+	WorkspaceSymbolsCaseSensitive(*testing.T, string, []protocol.SymbolInformation, map[string]struct{})
 	SignatureHelp(*testing.T, span.Span, *protocol.SignatureHelp)
 	Link(*testing.T, span.URI, []Link)
 }
@@ -258,28 +260,29 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 	var data []*Data
 	for _, folder := range folders {
 		datum := &Data{
-			Diagnostics:              make(Diagnostics),
-			CompletionItems:          make(CompletionItems),
-			Completions:              make(Completions),
-			CompletionSnippets:       make(CompletionSnippets),
-			UnimportedCompletions:    make(UnimportedCompletions),
-			DeepCompletions:          make(DeepCompletions),
-			FuzzyCompletions:         make(FuzzyCompletions),
-			RankCompletions:          make(RankCompletions),
-			CaseSensitiveCompletions: make(CaseSensitiveCompletions),
-			Definitions:              make(Definitions),
-			Implementations:          make(Implementations),
-			Highlights:               make(Highlights),
-			References:               make(References),
-			Renames:                  make(Renames),
-			PrepareRenames:           make(PrepareRenames),
-			Symbols:                  make(Symbols),
-			symbolsChildren:          make(SymbolsChildren),
-			symbolInformation:        make(SymbolInformation),
-			WorkspaceSymbols:         make(WorkspaceSymbols),
-			WorkspaceSymbolsFuzzy:    make(WorkspaceSymbols),
-			Signatures:               make(Signatures),
-			Links:                    make(Links),
+			Diagnostics:                   make(Diagnostics),
+			CompletionItems:               make(CompletionItems),
+			Completions:                   make(Completions),
+			CompletionSnippets:            make(CompletionSnippets),
+			UnimportedCompletions:         make(UnimportedCompletions),
+			DeepCompletions:               make(DeepCompletions),
+			FuzzyCompletions:              make(FuzzyCompletions),
+			RankCompletions:               make(RankCompletions),
+			CaseSensitiveCompletions:      make(CaseSensitiveCompletions),
+			Definitions:                   make(Definitions),
+			Implementations:               make(Implementations),
+			Highlights:                    make(Highlights),
+			References:                    make(References),
+			Renames:                       make(Renames),
+			PrepareRenames:                make(PrepareRenames),
+			Symbols:                       make(Symbols),
+			symbolsChildren:               make(SymbolsChildren),
+			symbolInformation:             make(SymbolInformation),
+			WorkspaceSymbols:              make(WorkspaceSymbols),
+			WorkspaceSymbolsFuzzy:         make(WorkspaceSymbols),
+			WorkspaceSymbolsCaseSensitive: make(WorkspaceSymbols),
+			Signatures:                    make(Signatures),
+			Links:                         make(Links),
 
 			t:         t,
 			dir:       folder,
@@ -412,10 +415,11 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 		}
 		// Collect names for the entries that require golden files.
 		if err := datum.Exported.Expect(map[string]interface{}{
-			"godef":                datum.collectDefinitionNames,
-			"hover":                datum.collectDefinitionNames,
-			"workspacesymbol":      datum.collectWorkspaceSymbols(WorkspaceSymbolsDefault),
-			"workspacesymbolfuzzy": datum.collectWorkspaceSymbols(WorkspaceSymbolsFuzzy),
+			"godef":                        datum.collectDefinitionNames,
+			"hover":                        datum.collectDefinitionNames,
+			"workspacesymbol":              datum.collectWorkspaceSymbols(WorkspaceSymbolsDefault),
+			"workspacesymbolfuzzy":         datum.collectWorkspaceSymbols(WorkspaceSymbolsFuzzy),
+			"workspacesymbolcasesensitive": datum.collectWorkspaceSymbols(WorkspaceSymbolsCaseSensitive),
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -655,6 +659,11 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("WorkspaceSymbolsFuzzy", func(t *testing.T) {
 		t.Helper()
 		eachWorkspaceSymbols(t, data.WorkspaceSymbolsFuzzy, tests.WorkspaceSymbolsFuzzy)
+	})
+
+	t.Run("WorkspaceSymbolsCaseSensitive", func(t *testing.T) {
+		t.Helper()
+		eachWorkspaceSymbols(t, data.WorkspaceSymbolsCaseSensitive, tests.WorkspaceSymbolsCaseSensitive)
 	})
 
 	t.Run("SignatureHelp", func(t *testing.T) {
@@ -1032,6 +1041,12 @@ func (data *Data) collectWorkspaceSymbols(typ WorkspaceSymbolsTestType) func(str
 		return func(query string, targets []span.Span) {
 			for _, target := range targets {
 				data.WorkspaceSymbolsFuzzy[query] = append(data.WorkspaceSymbolsFuzzy[query], data.symbolInformation[target])
+			}
+		}
+	case WorkspaceSymbolsCaseSensitive:
+		return func(query string, targets []span.Span) {
+			for _, target := range targets {
+				data.WorkspaceSymbolsCaseSensitive[query] = append(data.WorkspaceSymbolsCaseSensitive[query], data.symbolInformation[target])
 			}
 		}
 	default:

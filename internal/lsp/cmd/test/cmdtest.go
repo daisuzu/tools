@@ -106,6 +106,10 @@ func (r *runner) WorkspaceSymbolsFuzzy(*testing.T, string, []protocol.SymbolInfo
 	//TODO: add command line workspace symbol tests when it works
 }
 
+func (r *runner) WorkspaceSymbolsCaseSensitive(*testing.T, string, []protocol.SymbolInformation, map[string]struct{}) {
+	//TODO: add command line workspace symbol tests when it works
+}
+
 func (r *runner) runGoplsCmd(t testing.TB, args ...string) (string, string) {
 	rStdout, wStdout, err := os.Pipe()
 	if err != nil {
