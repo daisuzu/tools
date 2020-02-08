@@ -11,6 +11,7 @@ import (
 	"go/types"
 	"strings"
 
+	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
@@ -20,14 +21,26 @@ func WorkspaceSymbols(ctx context.Context, views []View, query string) ([]protoc
 	ctx, done := trace.StartSpan(ctx, "source.WorkspaceSymbols")
 	defer done()
 
-	q := strings.ToLower(query)
-	matcher := func(s string) bool {
-		return strings.Contains(strings.ToLower(s), q)
-	}
-
 	seen := make(map[string]struct{})
 	var symbols []protocol.SymbolInformation
 	for _, view := range views {
+		var matcher matcherFunc
+		switch view.Options().UserOptions.Matcher {
+		case Fuzzy:
+			fm := fuzzy.NewMatcher(query)
+			matcher = func(s string) bool {
+				return fm.Score(s) > 0
+			}
+		case CaseSensitive:
+			matcher = func(s string) bool {
+				return strings.Contains(s, query)
+			}
+		default:
+			q := strings.ToLower(query)
+			matcher = func(s string) bool {
+				return strings.Contains(strings.ToLower(s), q)
+			}
+		}
 		knownPkgs, err := view.Snapshot().KnownPackages(ctx)
 		if err != nil {
 			return nil, err
